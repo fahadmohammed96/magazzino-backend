@@ -19,8 +19,20 @@ uvicorn app.main:app --reload    # http://localhost:8000
 | `pytest`                         | Suite di test              |
 | `ruff check .`                   | Lint                       |
 | `ruff format .`                  | Format                     |
+| `alembic upgrade head`           | Applica le migrazioni      |
+| `alembic downgrade base`         | Annulla le migrazioni      |
 
 Contratto OpenAPI: `http://localhost:8000/openapi.json`
+
+## Database e migrazioni
+
+PostgreSQL + SQLAlchemy 2 + Alembic. La connessione è letta da `DATABASE_URL`
+(vedi `.env.example`); engine e sessioni sono in `app/db/`. Le migrazioni
+vivono in `migrations/` e usano la stessa `DATABASE_URL`.
+
+I test d'integrazione (`tests/integration/`) usano un PostgreSQL usa-e-getta
+via **testcontainers**: richiedono un daemon Docker attivo. In assenza di
+Docker vengono saltati automaticamente; i test unitari girano comunque.
 
 ## Flusso di lavoro
 
