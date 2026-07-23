@@ -5,6 +5,7 @@ registrate su ``Base.metadata`` non appena il package ``app.models`` è
 importato: comodo per ``create_all`` nei test e per l'autogenerate Alembic.
 """
 
+from app.models.customer import Customer
 from app.models.user import Role, User
 
-__all__ = ["Role", "User"]
+__all__ = ["Customer", "Role", "User"]
