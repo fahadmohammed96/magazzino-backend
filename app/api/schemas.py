@@ -13,7 +13,9 @@ class LoginRequest(BaseModel):
     """Corpo della richiesta di login."""
 
     username: str = Field(min_length=1, max_length=150)
-    password: str = Field(min_length=1, max_length=1024)
+    # Limite allineato a bcrypt, che considera solo i primi 72 byte: accettare
+    # di più sarebbe fuorviante (i byte in eccesso non contribuiscono).
+    password: str = Field(min_length=1, max_length=72)
 
 
 class UserOut(BaseModel):

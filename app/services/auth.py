@@ -6,11 +6,24 @@ chiamante e non conosce l'HTTP: gli endpoint lo usano tramite la dependency
 ``app.db.session.get_session``), così la scrittura è esplicita.
 """
 
+from functools import lru_cache
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import security
 from app.models.user import Role, User
+
+
+@lru_cache(maxsize=1)
+def _timing_safe_hash() -> str:
+    """Hash fittizio (input non segreto), calcolato una sola volta.
+
+    Serve a :func:`authenticate` per verificare comunque una password quando lo
+    username non esiste, così il tempo di risposta non dipende dall'esistenza
+    dell'utente (mitigazione dell'enumerazione via timing).
+    """
+    return security.hash_password("timing-safe-placeholder")
 
 
 def get_user_by_username(session: Session, username: str) -> User | None:
@@ -34,6 +47,9 @@ def authenticate(session: Session, username: str, password: str) -> User | None:
     """
     user = get_user_by_username(session, username)
     if user is None:
+        # Verifica comunque contro un hash fittizio: mantiene il tempo di
+        # risposta indipendente dall'esistenza dello username.
+        security.verify_password(password, _timing_safe_hash())
         return None
     if not security.verify_password(password, user.password_hash):
         return None

@@ -23,7 +23,8 @@ class Settings(BaseSettings):
         auth_secret_key: chiave segreta per firmare i token di accesso (JWT,
             HS256). Obbligatoria e senza default: un default nel codice
             renderebbe i token falsificabili. Va fornita via
-            ``AUTH_SECRET_KEY``.
+            ``AUTH_SECRET_KEY`` e deve essere lunga almeno 32 caratteri
+            (RFC 7518).
         access_token_expire_minutes: durata di validità del token di accesso,
             in minuti. Non è un segreto: ha un default ragionevole.
         seed_admin_username: username dell'utente admin iniziale, usato solo
@@ -51,10 +52,12 @@ class Settings(BaseSettings):
 
     auth_secret_key: str = Field(
         ...,
-        min_length=1,
+        min_length=32,
         description=(
             "Chiave segreta per firmare i token di accesso (JWT HS256). "
-            "Obbligatoria, senza default: fornirla via AUTH_SECRET_KEY."
+            "Obbligatoria, senza default: fornirla via AUTH_SECRET_KEY. "
+            "Minimo 32 caratteri (RFC 7518): una chiave debole è rifiutata "
+            "all'avvio, non solo sconsigliata."
         ),
     )
 

@@ -19,6 +19,10 @@ from app.core.config import Settings
 
 ALGORITHM = "HS256"
 
+# bcrypt considera solo i primi 72 byte della password: oltre quel limite i
+# byte in eccesso verrebbero silenziosamente ignorati.
+_BCRYPT_MAX_BYTES = 72
+
 
 def hash_password(password: str) -> str:
     """Restituisce l'hash bcrypt della password (comprensivo di salt).
@@ -26,8 +30,17 @@ def hash_password(password: str) -> str:
     Il valore ritornato è una stringa ASCII adatta alla colonna
     ``users.password_hash``; include algoritmo, costo e salt, quindi è
     autosufficiente per la verifica successiva.
+
+    Solleva :class:`ValueError` se la password supera i 72 byte (limite di
+    bcrypt): meglio un errore esplicito — es. in fase di seed — che un
+    troncamento silenzioso che indebolirebbe la password senza avviso.
     """
-    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    encoded = password.encode("utf-8")
+    if len(encoded) > _BCRYPT_MAX_BYTES:
+        raise ValueError(
+            f"La password supera il limite di {_BCRYPT_MAX_BYTES} byte di bcrypt."
+        )
+    hashed = bcrypt.hashpw(encoded, bcrypt.gensalt())
     return hashed.decode("utf-8")
 
 

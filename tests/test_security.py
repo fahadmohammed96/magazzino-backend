@@ -36,6 +36,19 @@ def test_verify_password_hash_malformato_ritorna_false() -> None:
     assert security.verify_password("qualsiasi", "non-un-hash-bcrypt") is False
 
 
+def test_hash_password_oltre_72_byte_solleva() -> None:
+    """Oltre il limite di bcrypt si solleva un errore, niente troncamento muto."""
+    with pytest.raises(ValueError):
+        security.hash_password("x" * 73)
+
+
+def test_hash_password_al_limite_72_byte_funziona() -> None:
+    """Esattamente 72 byte è ammesso e verificabile."""
+    password = "x" * 72
+    hashed = security.hash_password(password)
+    assert security.verify_password(password, hashed) is True
+
+
 def test_token_roundtrip_riporta_subject_e_ruolo() -> None:
     """Il token creato si decodifica riportando id utente e ruolo."""
     settings = _settings()
