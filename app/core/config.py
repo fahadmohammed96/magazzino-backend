@@ -16,9 +16,10 @@ class Settings(BaseSettings):
 
     Attributi:
         database_url: DSN SQLAlchemy verso PostgreSQL, driver psycopg 3
-            (schema ``postgresql+psycopg://``). Il default punta a un Postgres
-            locale di sviluppo; in ogni altro ambiente va sovrascritto via
-            variabile d'ambiente ``DATABASE_URL``.
+            (schema ``postgresql+psycopg://``). Obbligatorio: va fornito via
+            variabile d'ambiente ``DATABASE_URL`` (o file ``.env`` locale).
+            Nessun valore di default nel codice — le credenziali non vivono
+            mai nel sorgente.
     """
 
     model_config = SettingsConfigDict(
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str = Field(
-        default="postgresql+psycopg://magazzino:magazzino@localhost:5432/magazzino",
+        ...,
         description=(
             "DSN SQLAlchemy verso PostgreSQL (driver psycopg 3), es. "
             "postgresql+psycopg://utente:password@host:5432/database"
