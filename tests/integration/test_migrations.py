@@ -35,7 +35,8 @@ def test_upgrade_head_e_downgrade_base(postgres_url: str) -> None:
     engine = create_engine(postgres_url, future=True)
     try:
         command.upgrade(config, "head")
-        assert _current_revision(engine) == "0001_baseline"
+        # La testa della catena è la migrazione più recente (ora 0002_users).
+        assert _current_revision(engine) == "0002_users"
 
         command.downgrade(config, "base")
         assert _current_revision(engine) is None
