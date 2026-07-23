@@ -34,6 +34,35 @@ I test d'integrazione (`tests/integration/`) usano un PostgreSQL usa-e-getta
 via **testcontainers**: richiedono un daemon Docker attivo. In assenza di
 Docker vengono saltati automaticamente; i test unitari girano comunque.
 
+## Autenticazione
+
+Login interno con token Bearer (JWT HS256) e due ruoli, `admin` e `operator`.
+
+| Endpoint             | Descrizione                                            |
+| -------------------- | ------------------------------------------------------ |
+| `POST /v1/auth/login`| Credenziali → `access_token` Bearer + dati utente      |
+| `GET /v1/auth/me`    | Token Bearer → dati dell'utente autenticato            |
+
+Variabili d'ambiente (vedi `.env.example`): `AUTH_SECRET_KEY` (obbligatoria,
+firma i token), `ACCESS_TOKEN_EXPIRE_MINUTES` (opzionale, default 60).
+
+Le dependency di protezione riusabili sono in `app/api/deps.py`:
+`get_current_user` (richiede un token valido) e `require_role(Role.admin)`
+(richiede anche un ruolo minimo), da applicare agli endpoint di dominio.
+
+### Utente admin iniziale (seed)
+
+Per il primo accesso, crea l'admin una tantum dopo aver applicato le
+migrazioni:
+
+```bash
+alembic upgrade head
+# SEED_ADMIN_USERNAME e SEED_ADMIN_PASSWORD valorizzate nel tuo .env
+python -m app.db.seed
+```
+
+Il comando è idempotente: se l'utente esiste già non fa nulla.
+
 ## Flusso di lavoro
 
 Consegne sempre via pull request verso `main` (branch protetto). La CI
