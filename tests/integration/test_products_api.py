@@ -13,12 +13,15 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
+import app.api.products as products_api
 from app.api.auth import router as auth_router
 from app.api.errors import register_exception_handlers
 from app.api.products import router as products_router
 from app.db.session import get_session
 from app.models.user import Role
 from app.services import auth as auth_service
+from app.services import products as products_service
+from app.services.products import ProductCreate, SkuConflictError
 
 ADMIN = ("admin", "admin-pass")
 OPERATOR = ("operatore", "op-pass")
@@ -278,3 +281,47 @@ def test_export_csv_round_trip(client: TestClient) -> None:
 def test_export_senza_token_401(client: TestClient) -> None:
     response = client.get("/v1/products/export")
     assert response.status_code == 401
+
+
+def test_import_file_troppo_grande_413(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Un file oltre il tetto di dimensione è rifiutato con 413, senza parsing."""
+    monkeypatch.setattr(products_api, "_MAX_IMPORT_BYTES", 16)
+    csv_text = (
+        "sku,name,description,price,stock_quantity,low_stock_threshold\n"
+        "SKU-1,Vite,,1.00,1,1\n"
+    )
+    response = client.post(
+        "/v1/products/import",
+        files={"file": ("grande.csv", csv_text, "text/csv")},
+        headers=_auth(client, ADMIN),
+    )
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "file_too_large"
+
+
+def test_conflitto_sku_concorrente_diventa_sku_conflict(
+    session_factory,
+) -> None:
+    """Se un altro attore inserisce lo stesso ``sku`` prima del flush, il vincolo
+    univoco a DB produce ``SkuConflictError`` (tradotto in 409), non un errore
+    non gestito."""
+    dati = ProductCreate(
+        sku="RACE",
+        name="X",
+        price="1.00",
+        stock_quantity=1,
+        low_stock_threshold=1,
+    )
+    # Sessione "concorrente" che vince la corsa e committa per prima.
+    with session_factory() as vincitore:
+        products_service.create_product(vincitore, dati)
+        vincitore.commit()
+
+    # La seconda create sullo stesso sku collide sull'indice univoco.
+    with session_factory() as perdente:
+        with pytest.raises(SkuConflictError):
+            products_service.create_product(perdente, dati)
+        # La transazione resta usabile: il SAVEPOINT ha isolato la violazione.
+        assert products_service.get_product_by_sku(perdente, "RACE") is not None

@@ -34,6 +34,11 @@ router = APIRouter(prefix="/v1/products", tags=["products"])
 _read_dep = Depends(require_role(Role.operator))
 _write_dep = Depends(require_role(Role.admin))
 
+# Tetto di dimensione per l'import CSV: il file è letto interamente in memoria,
+# quindi si limita per evitare che un upload sproporzionato esaurisca la RAM.
+# 5 MiB coprono decine di migliaia di righe di catalogo con ampio margine.
+_MAX_IMPORT_BYTES = 5 * 1024 * 1024
+
 
 def _conflict(sku: str) -> APIError:
     return APIError(
@@ -90,9 +95,17 @@ async def import_products(
 
     Le righe valide sono create/aggiornate; quelle invalide sono raccolte in
     ``errors`` senza abortire l'import. Applica le modifiche (commit) solo dopo
-    aver processato l'intero file.
+    aver processato l'intero file. Rifiuta con 413 un file oltre il tetto di
+    dimensione (letto interamente in memoria).
     """
-    contenuto = await file.read()
+    # Legge al massimo il tetto + 1 byte: se supera, il file è troppo grande.
+    contenuto = await file.read(_MAX_IMPORT_BYTES + 1)
+    if len(contenuto) > _MAX_IMPORT_BYTES:
+        raise APIError(
+            status_code=413,
+            code="file_too_large",
+            message="Il file CSV supera il limite di 5 MiB consentito.",
+        )
     try:
         testo = contenuto.decode("utf-8-sig")
     except UnicodeDecodeError as exc:

@@ -119,3 +119,56 @@ def test_import_intestazione_incompleta_ritorna_errore_riga_1() -> None:
     assert len(risultato.errors) == 1
     assert risultato.errors[0].row == 1
     assert "price" in risultato.errors[0].message
+
+
+def test_export_disinnesca_valori_formula() -> None:
+    """Un valore che inizierebbe una formula è preceduto da un apice in export."""
+    prodotto = Product(
+        sku="=CMD",
+        name="-1+2",
+        description="@ref",
+        price=Decimal("1.00"),
+        stock_quantity=1,
+        low_stock_threshold=1,
+    )
+    riga = svc.products_to_csv([prodotto]).splitlines()[1]
+    # Le celle a rischio sono citate perché contengono la virgola o l'apice.
+    assert riga.startswith("'=CMD,")
+    assert "'-1+2" in riga
+    assert "'@ref" in riga
+
+
+def test_round_trip_valori_formula_senza_perdite() -> None:
+    """La coppia disinnesco (export) / ripulitura (import) è senza perdite."""
+    originali = [
+        Product(
+            sku="=CMD|calc",
+            name="-danger",
+            description="@formula",
+            price=Decimal("2.00"),
+            stock_quantity=3,
+            low_stock_threshold=1,
+        )
+    ]
+    testo = svc.products_to_csv(originali)
+    reader = csv.DictReader(io.StringIO(testo))
+    riparsati = [svc.parse_csv_row(r) for r in reader]
+    assert riparsati[0].sku == "=CMD|calc"
+    assert riparsati[0].name == "-danger"
+    assert riparsati[0].description == "@formula"
+
+
+def test_apice_legittimo_preservato() -> None:
+    """Un apice iniziale seguito da testo normale non viene rimosso in import."""
+    prod = svc.parse_csv_row(
+        {
+            "sku": "SKU-1",
+            "name": "'Promo",
+            "description": "'ok",
+            "price": "1.00",
+            "stock_quantity": "1",
+            "low_stock_threshold": "1",
+        }
+    )
+    assert prod.name == "'Promo"
+    assert prod.description == "'ok"
