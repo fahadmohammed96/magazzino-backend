@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from app.api.auth import router as auth_router
 from app.api.errors import register_exception_handlers
 from app.api.health import router as health_router
+from app.api.products import router as products_router
 
 app = FastAPI(
     title="magazzino API",
@@ -19,3 +20,4 @@ register_exception_handlers(app)
 
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(products_router)
